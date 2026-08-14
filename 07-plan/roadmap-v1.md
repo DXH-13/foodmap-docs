@@ -16,11 +16,39 @@ Dựng workspace và bộ khung để mọi việc sau đó có chỗ đứng.
 - [x] Script bootstrap / dev-up / gen-api-client
 - [x] Hướng dẫn cho AI: `AGENTS.md`, skills, subagents, slash commands
 - [x] Tài liệu: SRS, ERD, ADR, `openapi.yaml` v1
-- [ ] Skeleton chạy được cho backend, mobile, admin
-- [ ] CI cơ bản cho từng repo con
+- [x] Skeleton chạy được cho backend, mobile, admin
+- [x] CI cơ bản cho từng repo con + kiểm tra hợp đồng API ở repo cha
 
 **Xong khi:** clone repo cha vào máy sạch, chạy `bootstrap` rồi `dev-up`, cả ba phần
 khởi động được và mobile gọi được một endpoint thật của backend.
+
+### Đã kiểm chứng
+
+Chạy trên bản clone hoàn toàn mới, không dùng lại gì từ máy phát triển:
+
+| Hạng mục | Kết quả |
+|---|---|
+| `bootstrap` từ clone sạch | exit 0, 4 submodule đầy đủ, 3 file `.env` được tạo |
+| Hạ tầng Docker | 4/4 service `healthy` |
+| PostGIS | 3.4, extension đã bật |
+| Backend `./gradlew test` | 5/5 pass — Flyway chạy sạch từ CSDL rỗng, index GiST được dùng |
+| `GET /places/nearby` | Trả đúng 4 địa điểm, sắp theo khoảng cách, ẩn bản ghi `DRAFT` |
+| Đa ngôn ngữ ở API | `Accept-Language: en` đổi `message`, giữ nguyên `code` |
+| 401 vs 403 | Chưa đăng nhập → 401; sai quyền → 403, thông báo đúng ngôn ngữ |
+| Mobile | typecheck + lint sạch, `expo export` bundle 3.8MB thành công |
+| Admin | typecheck + lint + build sạch, trang chủ hiển thị dữ liệu thật từ backend |
+| Sinh lại TS client | Không sinh ra khác biệt so với bản đã commit |
+
+### Ba lỗi thật đã phát hiện và sửa nhờ bước kiểm chứng này
+
+1. `npm install` trên cây sạch cài **thiếu** — gói có mặt nhưng mất toàn bộ file `.d.ts`,
+   khiến `tsc` báo "Cannot find module" cho gói đang nằm ngay trong `node_modules`.
+   `bootstrap` đã đổi sang `npm ci`.
+2. Script `.ps1` chết vì hai lý do riêng biệt: PowerShell nuốt dấu nháy khi truyền cho
+   lệnh native, và `$ErrorActionPreference = 'Stop'` biến cảnh báo trên stderr của `npm`
+   thành lỗi dừng.
+3. `.gitignore` của `create-next-app` dùng mẫu `.env*` nên nuốt luôn cả `.env.example` —
+   người mới clone về không biết cần biến môi trường nào.
 
 ---
 
