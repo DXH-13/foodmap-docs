@@ -1,12 +1,12 @@
 # Quy ước viết tài liệu FoodMap
 
 Repo này chứa **tài liệu**, không chứa code. Ngoại lệ duy nhất là
-`03-api/openapi.yaml` — đó là hợp đồng kỹ thuật, sửa nó kéo theo cả backend, mobile và admin.
+`SDD/api/openapi.yaml` — đó là hợp đồng kỹ thuật, sửa nó kéo theo cả backend, mobile và admin.
 
 ## Ngôn ngữ và thuật ngữ
 
 - Viết bằng **tiếng Việt**. Thuật ngữ kỹ thuật giữ nguyên tiếng Anh, giải thích ở lần dùng đầu.
-- Dùng đúng từ vựng trong `00-overview/glossary-vi-en.md`:
+- Dùng đúng từ vựng trong từ điển thuật ngữ ở `Introduction/`:
   - `place` — dùng chung cho quán ăn, hàng ăn, chợ. **Không** viết "nhà hàng" khi ý là place.
   - `review` ≠ `feedback`. Review là đánh giá công khai có sao; feedback là báo dữ liệu sai,
     không công khai.
@@ -33,8 +33,8 @@ Sai: *"Hệ thống phải phản hồi nhanh."*
 Sai: *"Giao diện phải thân thiện."*
 Đúng: *"Người dùng mới hoàn tất đăng ký trong tối đa 3 màn hình, không quá 6 trường nhập."*
 
-Không viết được tiêu chí đo được thì đó chưa phải yêu cầu — đưa vào `07-plan/backlog.md`
-kèm câu hỏi mở.
+Không viết được tiêu chí đo được thì đó chưa phải yêu cầu — đưa vào
+`Management-Plan/backlog.md` kèm câu hỏi mở.
 
 ## Use case
 
@@ -48,7 +48,7 @@ Mẫu: **Bối cảnh · Quyết định · Phương án đã cân nhắc · H�
 **ADR đã merge thì không sửa nội dung.** Đổi ý thì viết ADR mới, đặt trạng thái ADR cũ
 thành `Bị thay thế bởi ADR-XXXX` và thêm liên kết hai chiều.
 
-## openapi.yaml
+## SDD/api/openapi.yaml
 
 Sửa file này là thay đổi hợp đồng, ảnh hưởng cả ba phần code. Quy ước đặt tên, cấu trúc
 schema và cách xử lý breaking change: xem skill `api-contract` ở repo cha.
@@ -57,5 +57,19 @@ Sau khi sửa, luôn chạy `./scripts/gen-api-client.sh` ở repo cha và kiể
 
 ## Không viết cái chưa chốt
 
-Tính năng chưa được quyết thì ghi vào `07-plan/backlog.md` kèm câu hỏi mở, đừng bịa
+Tính năng chưa được quyết thì ghi vào `Management-Plan/backlog.md` kèm câu hỏi mở, đừng bịa
 chi tiết trong SRS. Tài liệu mô tả thứ không tồn tại còn tệ hơn không có tài liệu.
+
+## Tài liệu nào đặt ở đâu
+
+| Loại nội dung | Thư mục |
+|---|---|
+| Tổng quan, tầm nhìn, chân dung người dùng, từ điển thuật ngữ | `Introduction/` |
+| Kế hoạch, lộ trình, backlog, phân công, rủi ro | `Management-Plan/` |
+| Yêu cầu chức năng / phi chức năng, use case, tiêu chí nghiệm thu | `SRS/` |
+| Kiến trúc, ADR, hợp đồng API, mô hình dữ liệu, thiết kế màn hình, vận hành | `SDD/` |
+| Test plan, test case, ma trận phủ, báo cáo kiểm thử | `Test-Document/` |
+| Hướng dẫn người dùng cuối và quản trị viên | `User-Guides/` |
+
+Tên thư mục cấp một dùng **tiêu đề tài liệu bàn giao, nối bằng dấu gạch ngang**, không
+dùng khoảng trắng — đường dẫn còn được script và CI của repo cha đọc trực tiếp.

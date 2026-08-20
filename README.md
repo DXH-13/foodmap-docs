@@ -9,27 +9,27 @@ Repo này là submodule `docs/` của repo cha.
 
 | Thư mục | Nội dung |
 |---|---|
-| [`00-overview/`](./00-overview/) | Tầm nhìn sản phẩm, từ điển thuật ngữ, chân dung người dùng |
-| [`01-srs/`](./01-srs/) | Đặc tả yêu cầu phần mềm, use case, tiêu chí nghiệm thu |
-| [`02-architecture/`](./02-architecture/) | Sơ đồ C4, các quyết định kiến trúc (ADR) |
-| [`03-api/`](./03-api/) | **`openapi.yaml` — hợp đồng API, nguồn sự thật duy nhất** |
-| [`04-data/`](./04-data/) | ERD, từ điển dữ liệu, mô hình địa lý |
-| [`05-ux/`](./05-ux/) | Luồng người dùng, danh sách màn hình |
-| [`06-ops/`](./06-ops/) | Môi trường, triển khai, runbook |
-| [`07-plan/`](./07-plan/) | Lộ trình v1, backlog |
+| [`Introduction/`](./Introduction/) | Tổng quan dự án, tầm nhìn, chân dung người dùng, từ điển thuật ngữ |
+| [`Management-Plan/`](./Management-Plan/) | Kế hoạch dự án, lộ trình, backlog, phân công, quản lý rủi ro |
+| [`SRS/`](./SRS/) | Đặc tả yêu cầu phần mềm, use case, tiêu chí nghiệm thu |
+| [`SDD/`](./SDD/) | **Thiết kế hệ thống — chứa `api/openapi.yaml`, hợp đồng API** |
+| [`Test-Document/`](./Test-Document/) | Kế hoạch kiểm thử, test case, ma trận phủ, báo cáo kết quả |
+| [`User-Guides/`](./User-Guides/) | Hướng dẫn sử dụng cho người dùng cuối và quản trị viên |
 
 ## Tài liệu nào quan trọng nhất
 
-1. **[`03-api/openapi.yaml`](./03-api/openapi.yaml)** — hợp đồng API. Backend implement
+1. **[`SDD/api/openapi.yaml`](./SDD/api/openapi.yaml)** — hợp đồng API. Backend implement
    theo nó, mobile và admin sinh TypeScript client từ nó. Sửa API luôn bắt đầu từ đây.
-2. **[`01-srs/srs.md`](./01-srs/srs.md)** — toàn bộ yêu cầu v1, đánh mã tra cứu được.
-3. **[`04-data/erd.md`](./04-data/erd.md)** — lược đồ dữ liệu.
+2. **[`SRS/`](./SRS/)** — toàn bộ yêu cầu v1, đánh mã tra cứu được.
+3. **[`SDD/du-lieu/`](./SDD/)** — lược đồ dữ liệu, ERD, mô hình địa lý.
 
 ## Quy ước
 
 - Viết bằng **tiếng Việt**; thuật ngữ kỹ thuật giữ nguyên tiếng Anh.
-- Dùng đúng từ vựng trong [`00-overview/glossary-vi-en.md`](./00-overview/glossary-vi-en.md).
+- Dùng đúng từ vựng trong [`Introduction/`](./Introduction/) — từ điển thuật ngữ vi–en.
 - Yêu cầu chức năng đánh mã `FR-<module>-<số>`, phi chức năng `NFR-<số>`.
 - **ADR đã ghi thì không sửa.** Quyết định sau thay thế bằng ADR mới, trỏ ngược về cái cũ.
+- Tên thư mục cấp một viết theo tiêu đề tài liệu bàn giao, **không dùng khoảng trắng**
+  (`Management-Plan`, không phải `Management Plan`) — đường dẫn còn được script và CI đọc.
 
 Chi tiết: [`CLAUDE.md`](./CLAUDE.md).
