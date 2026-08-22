@@ -7,11 +7,12 @@ và vận hành. Trả lời câu hỏi *xây dựng như thế nào*, tiếp n�
 
 | Đường dẫn | Mô tả |
 |---|---|
-| **[`api/openapi.yaml`](./api/openapi.yaml)** | **Hợp đồng API — nguồn sự thật duy nhất** |
+| **[`thiet-ke-tinh-nang.md`](./thiet-ke-tinh-nang.md)** | Thiết kế v1 bám Feature Breakdown (MoSCoW → màn hình, API, dữ liệu) |
+| **[`api/openapi.yaml`](./api/openapi.yaml)** | **Hợp đồng API — nguồn sự thật duy nhất** (cần khôi phục nếu file đang trống) |
 | `api/CHANGELOG.md` | Nhật ký thay đổi hợp đồng API, ghi rõ breaking change |
-| `kien-truc/` | Sơ đồ C4 (context, container), các quyết định kiến trúc (ADR) |
-| `du-lieu/` | ERD, từ điển dữ liệu, mô hình địa lý PostGIS |
-| `giao-dien/` | Luồng người dùng, danh sách màn hình |
+| `kien-truc/` | Sơ đồ C4, quyết định kiến trúc (ADR) |
+| `du-lieu/` | Thực thể, ERD, từ điển dữ liệu, mô hình địa lý PostGIS |
+| `giao-dien/` | Luồng người dùng, danh sách màn hình, workflow Stitch MCP |
 | `van-hanh/` | Môi trường, quy trình triển khai, runbook |
 
 ## `api/openapi.yaml` — đọc kỹ trước khi sửa
