@@ -15,6 +15,7 @@ Toạ độ: `geography(Point, 4326)` + index GiST. API JSON: `latitude`, `longi
 | `users.locked_at` | ADMIN-02 khoá user | NULL = hoạt động; khác NULL thì login trả 403 mã `USER_LOCKED` |
 | `places.price_level` | MAP-06 khoảng giá | SMALLINT 1–4 NULL = chưa biết; không bịa giá |
 | `place_media` | PLACE-02 media do admin | Tách khỏi media review |
+| `place_external_links` | PLACE-01 liên kết ngoài | `platform` (TIKTOK, FACEBOOK, INSTAGRAM, YOUTUBE, OTHER), `url` bắt buộc `https://` (CHECK), `title` NULL, `display_order`. Admin nhập; app chỉ hiển thị và mở ra ngoài |
 | `place_view_stats` hoặc bảng sự kiện xem | DISCOVERY-02 trending | Cộng dồn theo ngày + place; không lưu mọi tap nếu chưa cần |
 | `oauth_accounts` | AUTH-03 | `(provider, subject)` unique; `user_id` FK. Tạo khi implement Google, không chặn email |
 | `audit_logs` | ADMIN-02, ADMIN-04 | Append-only: actor, action, entity, metadata, thời điểm |

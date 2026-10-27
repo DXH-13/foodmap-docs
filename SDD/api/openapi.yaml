@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: FoodMap API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Hợp đồng API của FoodMap — bản đồ quán ăn, hàng ăn và chợ đồ ăn Việt Nam.
 
@@ -1366,7 +1366,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/PlaceSummary'
         - type: object
-          required: [openingHours, images, distinctVisitorCount, createdAt]
+          required: [openingHours, images, externalLinks, distinctVisitorCount, createdAt]
           properties:
             description: { type: string, nullable: true }
             phone: { type: string, nullable: true }
@@ -1382,6 +1382,10 @@ components:
             images:
               type: array
               items: { $ref: '#/components/schemas/Media' }
+            externalLinks:
+              type: array
+              description: Liên kết sang nền tảng khác (TikTok, Facebook, Instagram…), theo `displayOrder`. Rỗng khi chưa có.
+              items: { $ref: '#/components/schemas/PlaceExternalLink' }
             isFavorited:
               type: boolean
               nullable: true
@@ -1439,6 +1443,40 @@ components:
             imageMediaIds:
               type: array
               items: { type: string, format: uuid }
+            externalLinks:
+              type: array
+              maxItems: 20
+              description: Thay toàn bộ danh sách liên kết; thứ tự trong mảng là thứ tự hiển thị. Bỏ trống = giữ nguyên.
+              items: { $ref: '#/components/schemas/PlaceExternalLinkInput' }
+
+    ExternalPlatform:
+      type: string
+      enum: [TIKTOK, FACEBOOK, INSTAGRAM, YOUTUBE, OTHER]
+
+    PlaceExternalLinkInput:
+      type: object
+      required: [platform, url]
+      properties:
+        platform: { $ref: '#/components/schemas/ExternalPlatform' }
+        url:
+          type: string
+          format: uri
+          maxLength: 2000
+          pattern: '^https://'
+          description: Chỉ chấp nhận `https://` — client mở thẳng URL này ra trình duyệt/app ngoài.
+        title:
+          type: string
+          nullable: true
+          maxLength: 200
+          description: Nhãn hiển thị, ví dụ tên kênh hoặc tên bài; null thì client hiện tên nền tảng.
+
+    PlaceExternalLink:
+      allOf:
+        - $ref: '#/components/schemas/PlaceExternalLinkInput'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
 
     # ── review ──
 

@@ -51,7 +51,7 @@ API đọc công khai (bản đồ, nearby, popular, chi tiết quán, media, re
 
 | ID | Thiết kế |
 |---|---|
-| PLACE-01 | `GET /places/{id}`: tên/mô tả theo locale (fallback `en`→`vi`), loại, danh mục, địa chỉ, điện thoại, giờ mở, `isOpenNow` (múi `Asia/Ho_Chi_Minh`), rating, số review, `priceLevel`. Quán `PERMANENTLY_CLOSED` vẫn mở được chi tiết và review (để vào từ Yêu thích), hiện nhãn "đã đóng cửa", ẩn nút "Đã đến"; vẫn không xuất hiện trong nearby/tìm kiếm. `DRAFT`/đã xoá → 404. |
+| PLACE-01 | `GET /places/{id}`: tên/mô tả theo locale (fallback `en`→`vi`), loại, danh mục, địa chỉ, điện thoại, giờ mở, `isOpenNow` (múi `Asia/Ho_Chi_Minh`), rating, số review, `priceLevel`. Quán `PERMANENTLY_CLOSED` vẫn mở được chi tiết và review (để vào từ Yêu thích), hiện nhãn "đã đóng cửa", ẩn nút "Đã đến"; vẫn không xuất hiện trong nearby/tìm kiếm. `DRAFT`/đã xoá → 404. Thẻ "Xem thêm trên mạng xã hội": `externalLinks` (TikTok, Facebook, Instagram, YouTube) do admin nhập, mở bằng trình duyệt/app ngoài, chỉ `https://`. |
 | PLACE-02 | Gallery: `place_media` (admin) + media từ review `APPROVED`. Ảnh JPEG/PNG/WebP; video MP4. |
 | PLACE-03 | Block rating + danh sách review phân trang trên cùng màn chi tiết. |
 | PLACE-04 | `PUT/DELETE /me/favorites/{placeId}` idempotent. Tab Yêu thích. Quán `PERMANENTLY_CLOSED` giữ trong list, gắn nhãn. |

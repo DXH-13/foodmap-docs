@@ -20,6 +20,17 @@ thêm giá trị enum mới vào *response* (client phải xử lý giá trị l
 
 ---
 
+## [1.2.0] — 2026-10-27
+
+Không có thay đổi phá vỡ — chỉ thêm.
+
+| Thay đổi | Lý do |
+|---|---|
+| Thêm `PlaceDetail.externalLinks` (schema `PlaceExternalLink`, enum `ExternalPlatform`) | Trang chi tiết quán dẫn sang bài review trên TikTok, Facebook, Instagram, YouTube |
+| Thêm field tuỳ chọn `UpsertPlaceRequest.externalLinks` | Admin nhập/sửa danh sách liên kết khi tạo hoặc sửa địa điểm |
+
+---
+
 ## [1.1.0] — 2026-10-26
 
 Không có thay đổi phá vỡ — chỉ thêm.
