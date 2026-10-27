@@ -30,7 +30,7 @@ Design system cũ `assets/8a1fd477a8104b2bbab0ef28cbe51a21` ("FoodMap Vietnam", 
 | Bottom sheet | Sheet iOS ở detent medium, grabber xám giữa mép trên, header "Khu vực lân cận" + link "Xem thêm" | `@gorhom/bottom-sheet`, `backgroundComponent` = BlurView |
 | Dòng địa điểm | List style iOS: thumbnail bo góc 60pt, tiêu đề 17pt semibold, phụ đề 15pt, chip trạng thái, trailing `chevron.right`, separator thụt vào ngang chữ | |
 | Tab bar | Tab bar nổi iOS 26: capsule kính tách rời, thấy bản đồ quanh và dưới nó, trên home indicator. `map.fill` · `safari` · `heart` · `person.crop.circle` | Custom `tabBar` cho expo-router + BlurView, **không** dùng tab bar mặc định đục |
-| Marker | Teardrop kính, glyph theo loại: `fork.knife` quán ăn · `cart.fill` hàng rong · `basket.fill` chợ · `cup.and.saucer.fill` cà phê. Cluster = vòng tròn kính có số | `react-native-maps` custom marker |
+| Marker | Teardrop kính, glyph theo loại: `fork.knife` quán ăn · `cart.fill` hàng rong · `basket.fill` chợ · `cup.and.saucer.fill` cà phê. Cluster = vòng tròn kính có số | MapLibre `Marker` với view tuỳ biến |
 | Vị trí user | Chấm xanh iOS + quầng độ chính xác | `showsUserLocation` |
 
 ## Token Liquid Glass (đọc từ HTML Stitch)

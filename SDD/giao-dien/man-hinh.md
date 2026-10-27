@@ -8,12 +8,18 @@ Mọi màn: skeleton khi tải, lỗi + Thử lại, trạng thái rỗng có h�
 
 ### `app/(auth)/`
 
+Chưa đăng nhập thì mọi route khác đều chuyển về `welcome` — app không có chế độ khách.
+
 | Màn | Route | Function ID |
 |---|---|---|
+| Màn chào | `welcome` | — (lối vào đăng ký / đăng nhập) |
 | Đăng nhập | `login` | AUTH-02, AUTH-03 (nút Google nếu bật) |
 | Đăng ký | `register` | AUTH-01 |
 | Quên mật khẩu | `forgot-password` | AUTH-05 |
 | Đặt lại mật khẩu | `reset-password` | AUTH-06 |
+
+`app/onboarding` — guide tour 4 trang (Bản đồ, Khám phá, Yêu thích, Hồ sơ), hiện một lần
+mỗi thiết bị sau lần đăng nhập/đăng ký đầu tiên, có nút Bỏ qua.
 
 ### `app/(tabs)/` — tab mặc định là Bản đồ
 
@@ -24,7 +30,7 @@ Mọi màn: skeleton khi tải, lỗi + Thử lại, trạng thái rỗng có h�
 | Yêu thích | `favorites` | PLACE-04 |
 | Cá nhân | `profile` | AUTH-04, LANG-01, vào thông báo |
 
-Khách vào được Bản đồ và Khám phá. Tab Yêu thích trống + CTA đăng nhập.
+Mọi tab yêu cầu đã đăng nhập; không còn trạng thái "khách + CTA đăng nhập".
 
 ### Stack
 

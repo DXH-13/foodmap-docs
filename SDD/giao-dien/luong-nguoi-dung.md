@@ -5,29 +5,33 @@
 ```mermaid
 flowchart TD
   A[Mở app] --> B{Đã đăng nhập?}
-  B -->|Không| C[Tab Bản đồ — khách]
-  B -->|Có| D[Tab Bản đồ — user]
-  C --> E{Quyền vị trí}
-  D --> E
+  B -->|Không| C[Màn chào]
+  C --> L[Đăng ký AUTH-01 / Đăng nhập AUTH-02]
+  L --> T{Đã xem hướng dẫn?}
+  B -->|Có| T
+  T -->|Chưa| O[Guide tour 4 trang]
+  O --> D[Tab Bản đồ]
+  T -->|Rồi| D
+  D --> E{Quyền vị trí}
   E -->|Cho| F[Nearby + marker MAP-01..04 DISCOVERY-01]
   E -->|Từ chối| G[Tìm khu vực MAP-05]
   F --> H[Chi tiết PLACE-01]
   G --> H
 ```
 
-Đăng nhập **không** chắn cửa. Chỉ chặn khi bấm: viết review, yêu thích, mở chatbot, mở thông báo.
+**Bắt buộc đăng nhập** — app không có chế độ khách (quyết định 2026-10-27). Chưa đăng nhập,
+hoặc phiên hết hạn (401 sau khi refresh thất bại), hay đăng xuất → về màn chào.
 
-Sau login: **quay đúng màn đang dở**.
+Quyền vị trí chỉ xin **sau** guide tour, lúc vào tab Bản đồ. Cờ "đã xem hướng dẫn" lưu theo
+thiết bị: đăng ký tài khoản thứ hai trên cùng máy không xem lại tour.
 
 ## Từ bản đồ tới đánh giá
 
 ```mermaid
 flowchart LR
   M[Bản đồ / Khám phá] --> P[Chi tiết quán]
-  P --> R{Viết review / Tim?}
-  R -->|Chưa login| L[Login / Đăng ký]
-  L --> V{Email verified?}
-  R -->|Rồi| V
+  P --> R[Viết review]
+  R --> V{Email verified?}
   V -->|Chưa| N[Nhắc xác minh]
   V -->|Rồi| W[Form review PENDING]
 ```
@@ -38,9 +42,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  A[Mở chat] --> B{Login?}
-  B -->|Không| C[Login rồi quay lại]
-  B -->|Có| D[Nhập / gửi]
+  A[Mở chat] --> D[Nhập / gửi]
   D --> E[SSE + tool PostGIS]
   E --> F[Thẻ quán]
   F --> G[Chi tiết PLACE-01]

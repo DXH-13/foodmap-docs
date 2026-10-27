@@ -17,19 +17,20 @@ Tài liệu này trả lời *xây như thế nào* cho từng nhóm. Danh sách
 
 **Không có trong PDF** (có trong skill/`SRS` cũ): feedback báo sai quán, check-in/visit, đề xuất place từ user, cấu hình push theo loại. **Không thiết kế vào v1** khi bám breakdown này. `review` ≠ `feedback` — không dùng từ “báo cáo quán” cho review.
 
-Khách (`GUEST`) dùng: bản đồ, nearby, popular, chi tiết quán, media, review đã duyệt, đổi ngôn ngữ UI. Cần `USER` đã đăng nhập: review, yêu thích, chatbot, thông báo. Chặn thật ở API (`AUTH-07`).
+**App bắt buộc đăng nhập — không có chế độ khách** (quyết định 2026-10-27). Mở app chưa có phiên → màn chào → đăng ký/đăng nhập → guide tour → tab.
+API đọc công khai (bản đồ, nearby, popular, chi tiết quán, media, review đã duyệt) **vẫn để mở** ở backend: hợp đồng không đổi, và người gọi có token vẫn nhận thêm trường riêng (`isFavorited`, `ownVisitCount`). Thao tác ghi (review, yêu thích, visit, chatbot, thông báo) chặn thật ở API (`AUTH-07`).
 
 ---
 
 ## Bản đồ — `MAP-*`
 
-**Ý tưởng:** tab Bản đồ là màn mặc định. Google Maps chỉ *vẽ*. Dữ liệu quán và “quanh đây” đến từ PostGIS.
+**Ý tưởng:** tab Bản đồ là màn mặc định. Bản đồ nền (MapLibre + OpenFreeMap, ADR-0005) chỉ *vẽ*. Dữ liệu quán và “quanh đây” đến từ PostGIS.
 
 | ID | Thiết kế |
 |---|---|
 | MAP-01 | Bản đồ toàn màn, camera theo vị trí hoặc khu vực mặc định (TP.HCM nếu chưa có vị trí). |
 | MAP-02 | `expo-location`; marker “bạn đang ở đây”; nút recenter. Từ chối quyền: không khoá app, hiện tìm theo khu vực + nút mở Cài đặt hệ thống. |
-| MAP-03 | `GET /places/nearby` theo tâm camera hoặc GPS. Chỉ `PUBLISHED` và `TEMPORARILY_CLOSED` (có nhãn). Bán kính mặc định 2 km, tối đa 50 km — vượt trả 400, không cắt thầm. |
+| MAP-03 | `GET /places/nearby` theo GPS (chưa có vị trí thì theo khu vực mặc định). Kéo bản đồ **không** tải lại danh sách. Chỉ `PUBLISHED` và `TEMPORARILY_CLOSED` (có nhãn). Bán kính mặc định 2 km, tối đa 50 km — vượt trả 400, không cắt thầm. |
 | MAP-04 | Marker theo `placeType` (`RESTAURANT`, `STREET_FOOD`, `FOOD_MARKET`, `CAFE`). Clustering khi zoom nhỏ. Bấm marker → sheet rút gọn → `PLACE-01`. |
 | MAP-05 | Tìm tên/mô tả không dấu (`f_unaccent` + GIN). Ô tìm trên tab Khám phá và overlay bản đồ. |
 | MAP-06 | Query: `placeType`, `categoryId[]`, `minRating`, `openNow`, `priceLevel` (1–4, cột tuỳ chọn trên `places`). |
@@ -42,15 +43,15 @@ Khách (`GUEST`) dùng: bản đồ, nearby, popular, chi tiết quán, media, r
 | DISCOVERY-01 | Cùng API nearby, sort `distanceMeters` tăng dần. |
 | DISCOVERY-02 | `GET /places/trending?days=7` — điểm = lượt xem server + lượt yêu thích mới. Không dùng visit vì PDF không có check-in. |
 | DISCOVERY-03 | `GET /places?sort=popular` — `averageRating` DESC, `reviewCount` DESC. `averageRating = null` → UI “Chưa có đánh giá”, không hiện 0 sao. |
-| DISCOVERY-04 | **Client:** tối đa 20 `placeId` đã mở chi tiết, MMKV/SecureStore. Khách cũng có recent. |
-| DISCOVERY-05 | User đã login: nearby ∩ cùng `category` với quán đang yêu thích. Khách: fallback Popular. Không ML. |
+| DISCOVERY-04 | **Client:** tối đa 20 `placeId` đã mở chi tiết, MMKV/SecureStore. |
+| DISCOVERY-05 | User đã login: nearby ∩ cùng `category` với quán đang yêu thích. Chưa có yêu thích: fallback Popular. Không ML. |
 | DISCOVERY-06 | Chip danh mục từ `GET /categories`; lọc `place_categories`. |
 
 ## Địa điểm — `PLACE-*`
 
 | ID | Thiết kế |
 |---|---|
-| PLACE-01 | `GET /places/{id}`: tên/mô tả theo locale (fallback `en`→`vi`), loại, danh mục, địa chỉ, điện thoại, giờ mở, `isOpenNow` (múi `Asia/Ho_Chi_Minh`), rating, số review, `priceLevel`. |
+| PLACE-01 | `GET /places/{id}`: tên/mô tả theo locale (fallback `en`→`vi`), loại, danh mục, địa chỉ, điện thoại, giờ mở, `isOpenNow` (múi `Asia/Ho_Chi_Minh`), rating, số review, `priceLevel`. Quán `PERMANENTLY_CLOSED` vẫn mở được chi tiết và review (để vào từ Yêu thích), hiện nhãn "đã đóng cửa", ẩn nút "Đã đến"; vẫn không xuất hiện trong nearby/tìm kiếm. `DRAFT`/đã xoá → 404. |
 | PLACE-02 | Gallery: `place_media` (admin) + media từ review `APPROVED`. Ảnh JPEG/PNG/WebP; video MP4. |
 | PLACE-03 | Block rating + danh sách review phân trang trên cùng màn chi tiết. |
 | PLACE-04 | `PUT/DELETE /me/favorites/{placeId}` idempotent. Tab Yêu thích. Quán `PERMANENTLY_CLOSED` giữ trong list, gắn nhãn. |

@@ -9,7 +9,7 @@ flowchart LR
   diner[Người tìm quán]
   mod[Moderator / Admin]
   sys[FoodMap]
-  maps[Google Maps]
+  maps[OpenFreeMap tiles]
   claude[Claude API]
   mail[SMTP]
   diner --> sys
@@ -35,7 +35,7 @@ flowchart TB
   s3[MinIO / S3]
   mobile -->|REST + SSE| api
   admin -->|REST| api
-  mobile -.->|vẽ bản đồ| maps[Google Maps]
+  mobile -.->|vẽ bản đồ (MapLibre)| maps[OpenFreeMap tiles]
   mobile -->|presigned PUT| s3
   api --> pg
   api --> redis
