@@ -68,8 +68,6 @@ paths:
       tags:
       - auth
       summary: Đăng nhập
-      security:
-      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -98,8 +96,6 @@ paths:
       description: |-
         Refresh token dùng **một lần**. Mỗi lần gọi sinh cặp token mới và vô hiệu token cũ.
         Dùng lại token đã tiêu sẽ vô hiệu toàn bộ phiên của người dùng đó.
-      security:
-      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -278,18 +274,25 @@ paths:
         in: query
         schema:
           type: number
+          minimum: -90
+          maximum: 90
         required: true
         description: Vĩ độ của điểm gốc
       - name: longitude
         in: query
         schema:
           type: number
+          minimum: -180
+          maximum: 180
         required: true
         description: Kinh độ của điểm gốc
       - name: radiusMeters
         in: query
         schema:
-          type: number
+          type: integer
+          default: 2000
+          minimum: 100
+          maximum: 50000
         description: Bán kính tìm kiếm, đơn vị mét
       - name: placeType
         in: query
@@ -611,11 +614,15 @@ paths:
         in: query
         schema:
           type: number
+          minimum: -90
+          maximum: 90
         description: Bắt buộc khi sort = DISTANCE
       - name: longitude
         in: query
         schema:
           type: number
+          minimum: -180
+          maximum: 180
         description: Bắt buộc khi sort = DISTANCE
       - $ref: '#/components/parameters/PageParam'
       - $ref: '#/components/parameters/SizeParam'
@@ -1339,9 +1346,13 @@ components:
           format: email
         password:
           type: string
+          minLength: 8
+          maxLength: 128
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).{8,}$'
           description: Tối thiểu 8 ký tự, có ít nhất một chữ cái và một chữ số
         displayName:
           type: string
+          maxLength: 100
         preferredLocale:
           $ref: '#/components/schemas/Locale'
       required:
@@ -1391,6 +1402,9 @@ components:
           type: string
         newPassword:
           type: string
+          minLength: 8
+          maxLength: 128
+          pattern: '^(?=.*[A-Za-z])(?=.*\d).{8,}$'
       required:
       - token
       - newPassword
@@ -2322,13 +2336,18 @@ components:
       name: page
       in: query
       schema:
-        type: number
+        type: integer
+        default: 0
+        minimum: 0
       description: Số trang, bắt đầu từ 0
     SizeParam:
       name: size
       in: query
       schema:
-        type: number
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
       description: Số phần tử mỗi trang
     PlaceIdParam:
       name: placeId
