@@ -1,0 +1,2338 @@
+openapi: 3.1.0
+info:
+  title: FoodMap API
+  version: 1.0.0
+  description: |-
+    Hợp đồng API của FoodMap — nguồn sự thật duy nhất (contract-first).
+    Mobile (React Native) gọi nhóm /app/v1, web admin (Next.js) gọi nhóm /admin/v1, cùng một backend Spring Boot.
+    Bước 1 (2026-11-11): đổi tiền tố — /api/v1/* → /app/v1/*, /api/v1/admin/* → /admin/v1/*. Không thêm, không bớt endpoint nào; mọi endpoint /admin/v1 hiện có đều đã tồn tại trước đó dưới /api/v1/admin/*.
+servers:
+- url: http://localhost:8080
+  description: Môi trường dev local (backend cổng 8080)
+tags:
+- name: auth
+  description: Đăng ký, đăng nhập, token, mật khẩu
+- name: user
+  description: Hồ sơ người dùng hiện tại
+- name: place
+  description: Địa điểm ăn uống, tìm quanh đây, danh mục
+- name: review
+  description: Đánh giá của người dùng
+- name: feedback
+  description: Báo sai thông tin quán
+- name: favorite
+  description: Địa điểm yêu thích
+- name: visit
+  description: Lịch sử ghé thăm
+- name: media
+  description: Tải lên ảnh/video (presigned URL)
+- name: notification
+  description: Thông báo trong app và push token
+- name: chat
+  description: Chatbot gợi ý quán (SSE)
+- name: admin
+  description: 'Quản trị: kiểm duyệt, quản lý user, thống kê'
+paths:
+  /app/v1/auth/register:
+    post:
+      operationId: register
+      tags:
+      - auth
+      summary: Đăng ký tài khoản mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Đã tạo tài khoản, email xác minh đã được gửi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email đã được đăng ký
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /app/v1/auth/login:
+    post:
+      operationId: login
+      tags:
+      - auth
+      summary: Đăng nhập
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /app/v1/auth/refresh:
+    post:
+      operationId: refreshToken
+      tags:
+      - auth
+      summary: Làm mới access token
+      description: |-
+        Refresh token dùng **một lần**. Mỗi lần gọi sinh cặp token mới và vô hiệu token cũ.
+        Dùng lại token đã tiêu sẽ vô hiệu toàn bộ phiên của người dùng đó.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Cặp token mới
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/auth/logout:
+    post:
+      operationId: logout
+      tags:
+      - auth
+      summary: Đăng xuất
+      description: Vô hiệu refresh token hiện tại và gỡ push token của thiết bị.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Đã đăng xuất
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags:
+      - auth
+      summary: Yêu cầu đặt lại mật khẩu
+      description: |-
+        Luôn trả 202 với thông báo **giống hệt nhau**, dù email có tồn tại hay không —
+        để không lộ email nào đã đăng ký.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '202':
+          description: Đã tiếp nhận yêu cầu
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /app/v1/auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags:
+      - auth
+      summary: Đặt lại mật khẩu bằng token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Đã đổi mật khẩu
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /app/v1/auth/verify-email:
+    post:
+      operationId: verifyEmail
+      tags:
+      - auth
+      summary: Xác minh email bằng token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required:
+              - token
+      responses:
+        '204':
+          description: Email đã được xác minh
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /app/v1/auth/resend-verification:
+    post:
+      operationId: resendVerificationEmail
+      tags:
+      - auth
+      summary: Gửi lại email xác minh
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Đã tiếp nhận yêu cầu
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /app/v1/me:
+    get:
+      operationId: getCurrentUser
+      tags:
+      - user
+      summary: Lấy hồ sơ của chính mình
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Hồ sơ người dùng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      operationId: deleteCurrentUser
+      tags:
+      - user
+      summary: Yêu cầu xoá tài khoản
+      description: Xoá mềm ngay, xoá cứng sau 30 ngày. Review đã duyệt được giữ và ẩn danh tác giả.
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Đã tiếp nhận yêu cầu xoá
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      operationId: updateCurrentUser
+      tags:
+      - user
+      summary: Cập nhật hồ sơ của chính mình
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+      responses:
+        '200':
+          description: Hồ sơ sau khi cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/places/nearby:
+    get:
+      operationId: searchNearbyPlaces
+      tags:
+      - place
+      summary: Tìm địa điểm quanh một toạ độ
+      description: |-
+        Trả về địa điểm trong bán kính cho trước, **sắp xếp theo khoảng cách tăng dần**.
+
+        Bán kính vượt `50000` trả **400** `RADIUS_OUT_OF_RANGE` — không âm thầm cắt bớt.
+      parameters:
+      - name: latitude
+        in: query
+        schema:
+          type: number
+        required: true
+        description: Vĩ độ của điểm gốc
+      - name: longitude
+        in: query
+        schema:
+          type: number
+        required: true
+        description: Kinh độ của điểm gốc
+      - name: radiusMeters
+        in: query
+        schema:
+          type: number
+        description: Bán kính tìm kiếm, đơn vị mét
+      - name: placeType
+        in: query
+        schema:
+          $ref: '#/components/schemas/PlaceType'
+        description: Lọc theo loại địa điểm
+      - name: categorySlugs
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+        description: Lọc theo một hoặc nhiều danh mục
+      - name: minRating
+        in: query
+        schema:
+          type: number
+        description: Điểm trung bình tối thiểu
+      - name: openNow
+        in: query
+        schema:
+          type: boolean
+        description: Chỉ lấy địa điểm đang mở cửa tại thời điểm truy vấn
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Danh sách địa điểm gần nhất
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfPlaceSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /app/v1/places:
+    get:
+      operationId: searchPlaces
+      tags:
+      - place
+      summary: Tìm địa điểm theo từ khoá
+      description: Tìm trên tên và mô tả, không phân biệt hoa thường và không phân biệt dấu.
+      parameters:
+      - name: query
+        in: query
+        schema:
+          type: string
+        description: Từ khoá tìm kiếm
+      - name: placeType
+        in: query
+        schema:
+          $ref: '#/components/schemas/PlaceType'
+      - name: categorySlugs
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Kết quả tìm kiếm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfPlaceSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      operationId: suggestPlace
+      tags:
+      - place
+      summary: Đề xuất một địa điểm mới
+      description: Đề xuất vào trạng thái `DRAFT`, hiển thị công khai sau khi moderator duyệt.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestPlaceRequest'
+      responses:
+        '201':
+          description: Đã ghi nhận đề xuất
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /app/v1/places/{placeId}:
+    get:
+      operationId: getPlaceById
+      tags:
+      - place
+      summary: Lấy chi tiết một địa điểm
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      responses:
+        '200':
+          description: Chi tiết địa điểm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /app/v1/categories:
+    get:
+      operationId: listCategories
+      tags:
+      - place
+      summary: Lấy toàn bộ danh mục món ăn
+      responses:
+        '200':
+          description: Danh sách danh mục, sắp xếp theo displayOrder
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+  /app/v1/places/{placeId}/reviews:
+    get:
+      operationId: listPlaceReviews
+      tags:
+      - review
+      summary: Lấy đánh giá của một địa điểm
+      description: Chỉ trả review đã duyệt, trừ review của chính người gọi (luôn thấy kèm nhãn trạng thái).
+      parameters:
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - NEWEST
+          - HIGHEST_RATING
+          - LOWEST_RATING
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/PlaceIdParam'
+      responses:
+        '200':
+          description: Danh sách đánh giá
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfReview'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: submitReview
+      tags:
+      - review
+      summary: Gửi hoặc cập nhật đánh giá cho một địa điểm
+      description: |-
+        Mỗi người dùng chỉ có **một** đánh giá cho mỗi địa điểm.
+        Gửi lại là **cập nhật** đánh giá cũ, không tạo bản ghi mới.
+        Đánh giá đang `APPROVED` bị sửa sẽ quay về `PENDING`.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitReviewRequest'
+      responses:
+        '200':
+          description: Đã cập nhật đánh giá sẵn có
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '201':
+          description: Đã tạo đánh giá mới
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Email chưa được xác minh
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /app/v1/reviews/{reviewId}:
+    delete:
+      operationId: deleteOwnReview
+      tags:
+      - review
+      summary: Xoá đánh giá của chính mình
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: reviewId
+        in: path
+        schema:
+          type: string
+        required: true
+      responses:
+        '204':
+          description: Đã xoá
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /app/v1/me/reviews:
+    get:
+      operationId: listOwnReviews
+      tags:
+      - review
+      summary: Lấy đánh giá của chính mình
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Danh sách đánh giá của người gọi, mọi trạng thái
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfReview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/places/{placeId}/feedbacks:
+    post:
+      operationId: submitFeedback
+      tags:
+      - feedback
+      summary: Báo thông tin địa điểm sai
+      description: |-
+        Feedback **không** hiển thị công khai.
+        Đã có feedback cùng loại đang `OPEN` cho địa điểm này thì trả **409**
+        kèm `existingFeedbackId`.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitFeedbackRequest'
+      responses:
+        '201':
+          description: Đã ghi nhận
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Feedback'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Đã có feedback cùng loại đang mở
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /app/v1/me/feedbacks:
+    get:
+      operationId: listOwnFeedbacks
+      tags:
+      - feedback
+      summary: Lấy feedback của chính mình
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Danh sách feedback của người gọi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfFeedback'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/me/favorites:
+    get:
+      operationId: listFavorites
+      tags:
+      - favorite
+      summary: Lấy danh sách yêu thích
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - RECENTLY_ADDED
+          - DISTANCE
+      - name: latitude
+        in: query
+        schema:
+          type: number
+        description: Bắt buộc khi sort = DISTANCE
+      - name: longitude
+        in: query
+        schema:
+          type: number
+        description: Bắt buộc khi sort = DISTANCE
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Danh sách địa điểm yêu thích
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfPlaceSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/me/favorites/{placeId}:
+    put:
+      operationId: addFavorite
+      tags:
+      - favorite
+      summary: Thêm một địa điểm vào danh sách yêu thích
+      description: Idempotent — gọi lại với địa điểm đã yêu thích vẫn trả 200.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      responses:
+        '200':
+          description: Địa điểm đang nằm trong danh sách yêu thích
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: removeFavorite
+      tags:
+      - favorite
+      summary: Bỏ một địa điểm khỏi danh sách yêu thích
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      responses:
+        '204':
+          description: Đã bỏ khỏi danh sách
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/places/{placeId}/visits:
+    post:
+      operationId: recordVisit
+      tags:
+      - visit
+      summary: Ghi nhận đã đến một địa điểm
+      description: |-
+        Yêu cầu toạ độ hiện tại nằm trong **200m** quanh địa điểm, và tối đa
+        **1 lượt / người / địa điểm / ngày** theo giờ `Asia/Ho_Chi_Minh`.
+
+        Mã lỗi: `VISIT_TOO_FAR` · `VISIT_ALREADY_TODAY`.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordVisitRequest'
+      responses:
+        '201':
+          description: Đã ghi nhận lượt đến
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Quá xa địa điểm, hoặc đã ghi nhận trong ngày hôm nay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /app/v1/me/visits:
+    get:
+      operationId: listOwnVisits
+      tags:
+      - visit
+      summary: Lấy lịch sử đã đến của chính mình
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Lịch sử lượt đến
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfVisit'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/media/upload-url:
+    post:
+      operationId: createMediaUploadUrl
+      tags:
+      - media
+      summary: Xin presigned URL để upload media
+      description: |-
+        Client upload **thẳng** lên object storage bằng URL trả về; file không đi qua backend.
+        Upload xong phải gọi `confirmMediaUpload` để backend xác minh và ghi nhận.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMediaUploadUrlRequest'
+      responses:
+        '201':
+          description: URL upload đã được cấp
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadUrl'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/media/{mediaId}/confirm:
+    post:
+      operationId: confirmMediaUpload
+      tags:
+      - media
+      summary: Báo đã upload xong để backend xác minh file
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: mediaId
+        in: path
+        schema:
+          type: string
+        required: true
+      responses:
+        '200':
+          description: File hợp lệ, đã ghi nhận
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Media'
+        '400':
+          description: File không hợp lệ (sai loại hoặc quá kích thước cho phép)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /app/v1/me/notifications:
+    get:
+      operationId: listNotifications
+      tags:
+      - notification
+      summary: Lấy danh sách thông báo
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: unreadOnly
+        in: query
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Danh sách thông báo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfNotification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/me/notifications/read:
+    post:
+      operationId: markNotificationsRead
+      tags:
+      - notification
+      summary: Đánh dấu thông báo đã đọc
+      description: Truyền danh sách id, hoặc bỏ trống để đánh dấu tất cả.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notificationIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Bỏ trống hoặc rỗng nghĩa là đánh dấu tất cả
+      responses:
+        '204':
+          description: Đã đánh dấu
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/me/notification-settings:
+    get:
+      operationId: getNotificationSettings
+      tags:
+      - notification
+      summary: Lấy cấu hình nhận thông báo đẩy
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Cấu hình hiện tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      operationId: updateNotificationSettings
+      tags:
+      - notification
+      summary: Cập nhật cấu hình nhận thông báo đẩy
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettings'
+      responses:
+        '200':
+          description: Cấu hình sau khi cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/me/push-tokens:
+    post:
+      operationId: registerPushToken
+      tags:
+      - notification
+      summary: Đăng ký push token của thiết bị
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPushTokenRequest'
+      responses:
+        '204':
+          description: Đã đăng ký
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /app/v1/chat/messages:
+    post:
+      operationId: sendChatMessage
+      tags:
+      - chat
+      summary: Gửi tin nhắn cho chatbot
+      description: |-
+        Trả về **Server-Sent Events**. Mỗi sự kiện là một JSON theo schema `ChatStreamEvent`.
+
+        Chatbot chỉ trả lời dựa trên dữ liệu thật của FoodMap (qua tool nội bộ).
+        Không tìm thấy thì nói rõ là không tìm thấy — không bịa địa điểm.
+
+        Giới hạn 30 tin nhắn / người / giờ.
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: Accept
+        in: header
+        schema:
+          type: string
+          enum:
+          - text/event-stream
+        required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendChatMessageRequest'
+      responses:
+        '200':
+          description: Luồng SSE chứa câu trả lời
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ChatStreamEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          description: Dịch vụ AI tạm thời không khả dụng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /app/v1/chat/sessions/current:
+    get:
+      operationId: getCurrentChatSession
+      tags:
+      - chat
+      summary: Lấy lịch sử phiên chat hiện tại
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Phiên chat và các tin nhắn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      operationId: clearChatSession
+      tags:
+      - chat
+      summary: Xoá lịch sử phiên chat hiện tại
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Đã xoá lịch sử
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/v1/reviews:
+    get:
+      operationId: listReviewsForModeration
+      tags:
+      - admin
+      summary: Lấy hàng chờ kiểm duyệt đánh giá
+      description: Yêu cầu vai trò `MODERATOR` hoặc `ADMIN`.
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/ReviewStatus'
+      - name: placeId
+        in: query
+        schema:
+          type: string
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - OLDEST_FIRST
+          - NEWEST_FIRST
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Hàng chờ kiểm duyệt, kèm ngữ cảnh về tác giả
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfModerationReview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/v1/reviews/{reviewId}/moderate:
+    post:
+      operationId: moderateReview
+      tags:
+      - admin
+      summary: Duyệt, từ chối hoặc ẩn một đánh giá
+      description: |-
+        Hành động `REJECT` **bắt buộc** kèm `moderationNote`; thiếu thì trả 400
+        `MODERATION_NOTE_REQUIRED`.
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: reviewId
+        in: path
+        schema:
+          type: string
+        required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerateReviewRequest'
+      responses:
+        '200':
+          description: Đánh giá sau khi kiểm duyệt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Đánh giá đã được người khác xử lý
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /admin/v1/feedbacks:
+    get:
+      operationId: listFeedbacksForModeration
+      tags:
+      - admin
+      summary: Lấy hàng chờ xử lý feedback
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/FeedbackStatus'
+      - name: type
+        in: query
+        schema:
+          $ref: '#/components/schemas/FeedbackType'
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Danh sách feedback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfFeedback'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/v1/feedbacks/{feedbackId}/resolve:
+    post:
+      operationId: resolveFeedback
+      tags:
+      - admin
+      summary: Xử lý một feedback
+      parameters:
+      - name: feedbackId
+        in: path
+        schema:
+          type: string
+        required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveFeedbackRequest'
+      responses:
+        '200':
+          description: Feedback sau khi xử lý
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Feedback'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/v1/places:
+    post:
+      operationId: createPlace
+      tags:
+      - admin
+      summary: Tạo địa điểm mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertPlaceRequest'
+      responses:
+        '201':
+          description: Địa điểm đã tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/v1/places/{placeId}:
+    put:
+      operationId: updatePlace
+      tags:
+      - admin
+      summary: Cập nhật một địa điểm
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertPlaceRequest'
+      responses:
+        '200':
+          description: Địa điểm sau khi cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deletePlace
+      tags:
+      - admin
+      summary: Xoá một địa điểm
+      description: Xoá mềm. Hành động không hoàn tác được — giao diện phải xác nhận trước.
+      parameters:
+      - $ref: '#/components/parameters/PlaceIdParam'
+      responses:
+        '204':
+          description: Đã xoá
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/v1/users:
+    get:
+      operationId: listUsers
+      tags:
+      - admin
+      summary: Lấy danh sách người dùng
+      description: Chỉ vai trò `ADMIN`.
+      parameters:
+      - name: query
+        in: query
+        schema:
+          type: string
+        description: Tìm theo email hoặc tên hiển thị
+      - name: role
+        in: query
+        schema:
+          $ref: '#/components/schemas/UserRole'
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Danh sách người dùng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageOfUserProfile'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/v1/users/{userId}/role:
+    put:
+      operationId: updateUserRole
+      tags:
+      - admin
+      summary: Gán vai trò cho người dùng
+      description: Chỉ vai trò `ADMIN`.
+      parameters:
+      - name: userId
+        in: path
+        schema:
+          type: string
+        required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  $ref: '#/components/schemas/UserRole'
+              required:
+              - role
+      responses:
+        '200':
+          description: Người dùng sau khi đổi vai trò
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/v1/stats:
+    get:
+      operationId: getAdminStats
+      tags:
+      - admin
+      summary: Lấy số liệu thống kê tổng quan
+      responses:
+        '200':
+          description: Thống kê
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStats'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          description: |-
+            Mã lỗi ổn định, `SCREAMING_SNAKE_CASE`. **Không được dịch** —
+            client so sánh bằng mã này, không bằng `message`.
+          examples:
+          - PLACE_NOT_FOUND
+          - VISIT_TOO_FAR
+          - MODERATION_NOTE_REQUIRED
+        message:
+          type: string
+          description: Thông báo cho người dùng, **đã dịch** theo `Accept-Language`
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+          description: Chi tiết lỗi theo từng trường, dùng cho lỗi validation
+        traceId:
+          type: string
+          description: Mã truy vết để đối chiếu với log phía server
+      required:
+      - code
+      - message
+      - traceId
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+      required:
+      - field
+      - code
+      - message
+    PageMeta:
+      type: object
+      properties:
+        page:
+          type: number
+        size:
+          type: number
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: number
+      required:
+      - page
+      - size
+      - totalElements
+      - totalPages
+    Locale:
+      type: string
+      enum:
+      - vi
+      - en
+    UserRole:
+      type: string
+      enum:
+      - USER
+      - MODERATOR
+      - ADMIN
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          description: Tối thiểu 8 ký tự, có ít nhất một chữ cái và một chữ số
+        displayName:
+          type: string
+        preferredLocale:
+          $ref: '#/components/schemas/Locale'
+      required:
+      - email
+      - password
+      - displayName
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+      - email
+      - password
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      required:
+      - refreshToken
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+        pushToken:
+          type: string
+          description: Push token của thiết bị này, để gỡ đăng ký
+      required:
+      - refreshToken
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+      required:
+      - token
+      - newPassword
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: number
+          description: Thời gian sống của access token, đơn vị giây
+        user:
+          $ref: '#/components/schemas/UserProfile'
+      required:
+      - accessToken
+      - refreshToken
+      - expiresIn
+      - user
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        preferredLocale:
+          $ref: '#/components/schemas/Locale'
+        emailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - email
+      - displayName
+      - role
+      - preferredLocale
+      - emailVerified
+      - createdAt
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        preferredLocale:
+          $ref: '#/components/schemas/Locale'
+    PageOfUserProfile:
+      allOf:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/components/schemas/UserProfile'
+        required:
+        - content
+    PlaceType:
+      type: string
+      enum:
+      - RESTAURANT
+      - STREET_FOOD
+      - FOOD_MARKET
+      - CAFE
+    PlaceStatus:
+      type: string
+      enum:
+      - DRAFT
+      - PUBLISHED
+      - TEMPORARILY_CLOSED
+      - PERMANENTLY_CLOSED
+    Coordinates:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+      required:
+      - latitude
+      - longitude
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+          description: Đã dịch theo `Accept-Language`; thiếu bản `en` thì trả bản `vi`
+        icon:
+          type:
+          - string
+          - 'null'
+        displayOrder:
+          type: number
+      required:
+      - id
+      - slug
+      - name
+      - displayOrder
+    OpeningHourRange:
+      type: object
+      properties:
+        dayOfWeek:
+          type: number
+          description: 1 = thứ Hai … 7 = Chủ nhật (ISO-8601)
+        openTime:
+          type:
+          - string
+          - 'null'
+          description: Định dạng HH:mm. `null` khi nghỉ cả ngày
+          example: 06:00
+        closeTime:
+          type:
+          - string
+          - 'null'
+          description: Nhỏ hơn `openTime` nghĩa là qua nửa đêm
+          example: '10:30'
+        isClosedAllDay:
+          type: boolean
+      required:
+      - dayOfWeek
+      - isClosedAllDay
+    PlaceSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+          description: Đã dịch; thiếu bản `en` thì trả bản `vi`
+        placeType:
+          $ref: '#/components/schemas/PlaceType'
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        address:
+          type:
+          - string
+          - 'null'
+        status:
+          $ref: '#/components/schemas/PlaceStatus'
+        averageRating:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: '**`null` khi chưa có đánh giá nào — không phải `0`.**'
+        reviewCount:
+          type: number
+        visitCount:
+          type: integer
+          format: int64
+        coverImageUrl:
+          type:
+          - string
+          - 'null'
+        distanceMeters:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: Chỉ có mặt ở kết quả tìm theo vị trí
+        isOpenNow:
+          type:
+          - boolean
+          - 'null'
+          description: Tính theo giờ `Asia/Ho_Chi_Minh` tại thời điểm truy vấn
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+      required:
+      - id
+      - slug
+      - name
+      - placeType
+      - coordinates
+      - status
+      - reviewCount
+      - visitCount
+      - categories
+    PlaceDetail:
+      allOf:
+      - $ref: '#/components/schemas/PlaceSummary'
+      - type: object
+        properties:
+          description:
+            type:
+            - string
+            - 'null'
+          phone:
+            type:
+            - string
+            - 'null'
+          distinctVisitorCount:
+            type: integer
+            format: int64
+          nextOpenAt:
+            type:
+            - string
+            - 'null'
+            format: date-time
+            description: Thời điểm mở cửa tiếp theo khi hiện đang đóng
+          openingHours:
+            type: array
+            items:
+              $ref: '#/components/schemas/OpeningHourRange'
+          images:
+            type: array
+            items:
+              $ref: '#/components/schemas/Media'
+          isFavorited:
+            type:
+            - boolean
+            - 'null'
+            description: Chỉ có mặt khi người gọi đã đăng nhập
+          ownVisitCount:
+            type:
+            - number
+            - 'null'
+            description: Số lượt đến của chính người gọi; chỉ có khi đã đăng nhập
+          createdAt:
+            type: string
+            format: date-time
+        required:
+        - distinctVisitorCount
+        - openingHours
+        - images
+        - createdAt
+    PageOfPlaceSummary:
+      allOf:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/components/schemas/PlaceSummary'
+        required:
+        - content
+    PlaceTranslation:
+      type: object
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        name:
+          type: string
+        description:
+          type:
+          - string
+          - 'null'
+      required:
+      - locale
+      - name
+    SuggestPlaceRequest:
+      type: object
+      properties:
+        placeType:
+          $ref: '#/components/schemas/PlaceType'
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        address:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+        categorySlugs:
+          type: array
+          items:
+            type: string
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceTranslation'
+          description: Bản `vi` là **bắt buộc**; bản `en` tuỳ chọn
+      required:
+      - placeType
+      - coordinates
+      - translations
+    UpsertPlaceRequest:
+      allOf:
+      - $ref: '#/components/schemas/SuggestPlaceRequest'
+      - type: object
+        properties:
+          status:
+            $ref: '#/components/schemas/PlaceStatus'
+          openingHours:
+            type: array
+            items:
+              $ref: '#/components/schemas/OpeningHourRange'
+          imageMediaIds:
+            type: array
+            items:
+              type: string
+    ReviewStatus:
+      type: string
+      enum:
+      - PENDING
+      - APPROVED
+      - REJECTED
+      - HIDDEN
+    ReviewAuthor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+      required:
+      - id
+      - displayName
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        placeId:
+          type: string
+          format: uuid
+        author:
+          $ref: '#/components/schemas/ReviewAuthor'
+        rating:
+          type: number
+        content:
+          type:
+          - string
+          - 'null'
+        locale:
+          $ref: '#/components/schemas/Locale'
+        status:
+          $ref: '#/components/schemas/ReviewStatus'
+        moderationNote:
+          type:
+          - string
+          - 'null'
+          description: Chỉ trả về cho tác giả và cho moderator
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - id
+      - placeId
+      - author
+      - rating
+      - locale
+      - status
+      - media
+      - createdAt
+    SubmitReviewRequest:
+      type: object
+      properties:
+        rating:
+          type: number
+        content:
+          type:
+          - string
+          - 'null'
+        mediaIds:
+          type: array
+          items:
+            type: string
+          description: Tối đa 5 ảnh và 1 video
+      required:
+      - rating
+    PageOfReview:
+      allOf:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/components/schemas/Review'
+        required:
+        - content
+    ModerationReview:
+      allOf:
+      - $ref: '#/components/schemas/Review'
+      - type: object
+        properties:
+          placeName:
+            type: string
+          authorRejectedCount:
+            type: number
+            description: Số đánh giá của tác giả này đã bị từ chối trước đó
+        required:
+        - placeName
+        - authorRejectedCount
+    PageOfModerationReview:
+      allOf:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/components/schemas/ModerationReview'
+        required:
+        - content
+    ModerateReviewRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - APPROVE
+          - REJECT
+          - HIDE
+          - UNHIDE
+        moderationNote:
+          type:
+          - string
+          - 'null'
+          description: '**Bắt buộc khi `action = REJECT`.**'
+      required:
+      - action
+    FeedbackType:
+      type: string
+      enum:
+      - WRONG_ADDRESS
+      - WRONG_HOURS
+      - CLOSED_PERMANENTLY
+      - DUPLICATE
+      - INAPPROPRIATE
+      - OTHER
+    FeedbackStatus:
+      type: string
+      enum:
+      - OPEN
+      - IN_REVIEW
+      - RESOLVED
+      - DISMISSED
+    Feedback:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        placeId:
+          type: string
+          format: uuid
+        placeName:
+          type:
+          - string
+          - 'null'
+        type:
+          $ref: '#/components/schemas/FeedbackType'
+        description:
+          type:
+          - string
+          - 'null'
+        duplicateOfPlaceId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        status:
+          $ref: '#/components/schemas/FeedbackStatus'
+        resolutionNote:
+          type:
+          - string
+          - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - id
+      - placeId
+      - type
+      - status
+      - createdAt
+    SubmitFeedbackRequest:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/FeedbackType'
+        description:
+          type:
+          - string
+          - 'null'
+        duplicateOfPlaceId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Chỉ dùng khi `type = DUPLICATE`
+      required:
+      - type
+    ResolveFeedbackRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - IN_REVIEW
+          - RESOLVED
+          - DISMISSED
+        resolutionNote:
+          type:
+          - string
+          - 'null'
+      required:
+      - status
+    PageOfFeedback:
+      allOf:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/components/schemas/Feedback'
+        required:
+        - content
+    Visit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        placeId:
+          type: string
+          format: uuid
+        placeName:
+          type:
+          - string
+          - 'null'
+        visitDate:
+          type: string
+          format: date
+          description: Ngày theo giờ `Asia/Ho_Chi_Minh`
+        distanceMeters:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - placeId
+      - visitDate
+      - distanceMeters
+      - createdAt
+    RecordVisitRequest:
+      type: object
+      properties:
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+      required:
+      - coordinates
+    PageOfVisit:
+      allOf:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/components/schemas/Visit'
+        required:
+        - content
+    MediaType:
+      type: string
+      enum:
+      - IMAGE
+      - VIDEO
+    Media:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
+        url:
+          type: string
+          description: Bản hiển thị
+        thumbnailUrl:
+          type:
+          - string
+          - 'null'
+          description: Bản 400px
+        width:
+          type:
+          - number
+          - 'null'
+        height:
+          type:
+          - number
+          - 'null'
+        durationSeconds:
+          type:
+          - number
+          - 'null'
+      required:
+      - id
+      - mediaType
+      - url
+    CreateMediaUploadUrlRequest:
+      type: object
+      properties:
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
+        contentType:
+          type: string
+          enum:
+          - image/jpeg
+          - image/png
+          - image/webp
+          - video/mp4
+        sizeBytes:
+          type: integer
+          format: int64
+          description: Ảnh tối đa 10 MB, video tối đa 100 MB
+      required:
+      - mediaType
+      - contentType
+      - sizeBytes
+    MediaUploadUrl:
+      type: object
+      properties:
+        mediaId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          description: Presigned URL
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - mediaId
+      - uploadUrl
+      - expiresAt
+    NotificationType:
+      type: string
+      enum:
+      - REVIEW_APPROVED
+      - REVIEW_REJECTED
+      - FEEDBACK_RESOLVED
+      - NEW_PLACE_NEARBY
+      - PLACE_UPDATED
+      - SYSTEM_ANNOUNCEMENT
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        title:
+          type: string
+          description: Đã dịch theo ngôn ngữ ưa thích của người nhận
+        body:
+          type:
+          - string
+          - 'null'
+        placeId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        reviewId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - type
+      - title
+      - isRead
+      - createdAt
+    PageOfNotification:
+      allOf:
+      - $ref: '#/components/schemas/PageMeta'
+      - type: object
+        properties:
+          content:
+            type: array
+            items:
+              $ref: '#/components/schemas/Notification'
+          unreadCount:
+            type: number
+        required:
+        - content
+        - unreadCount
+    NotificationSettings:
+      type: object
+      properties:
+        enabledTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationType'
+          description: Các loại thông báo được phép gửi push
+      required:
+      - enabledTypes
+    RegisterPushTokenRequest:
+      type: object
+      properties:
+        token:
+          type: string
+        platform:
+          type: string
+          enum:
+          - IOS
+          - ANDROID
+      required:
+      - token
+      - platform
+    SendChatMessageRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+          description: Vị trí hiện tại, để chatbot gợi ý quanh đây
+        locale:
+          $ref: '#/components/schemas/Locale'
+          description: Bỏ trống thì suy ra từ ngôn ngữ của câu hỏi
+      required:
+      - message
+    ChatStreamEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - TEXT_DELTA
+          - PLACE_REFERENCES
+          - DONE
+          - ERROR
+        text:
+          type:
+          - string
+          - 'null'
+          description: Có mặt khi `type = TEXT_DELTA`
+        placeIds:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+          description: Có mặt khi `type = PLACE_REFERENCES`; client render thẻ bấm mở
+        messageId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Có mặt khi `type = DONE`
+        error:
+          oneOf:
+          - $ref: '#/components/schemas/ApiError'
+          - type: 'null'
+          description: Có mặt khi `type = ERROR`
+      required:
+      - type
+      description: Một sự kiện trong luồng SSE.
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - USER
+          - ASSISTANT
+        content:
+          type: string
+        referencedPlaceIds:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - role
+      - content
+      - createdAt
+    ChatSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - messages
+      - createdAt
+    AdminStats:
+      type: object
+      properties:
+        placesByStatus:
+          type: object
+          additionalProperties:
+            type: number
+        reviewsByStatus:
+          type: object
+          additionalProperties:
+            type: number
+        openFeedbackCount:
+          type: number
+        newUsersLast30Days:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              count:
+                type: number
+            required:
+            - date
+            - count
+        topViewedPlaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceSummary'
+      required:
+      - placesByStatus
+      - reviewsByStatus
+      - openFeedbackCount
+      - newUsersLast30Days
+      - topViewedPlaces
+  responses:
+    BadRequest:
+      description: Yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Chưa đăng nhập hoặc token không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: Không đủ quyền
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    TooManyRequests:
+      description: Vượt quá giới hạn tốc độ
+      headers:
+        Retry-After:
+          schema:
+            type: number
+          description: Số giây cần chờ trước khi thử lại
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: number
+      description: Số trang, bắt đầu từ 0
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: number
+      description: Số phần tử mỗi trang
+    PlaceIdParam:
+      name: placeId
+      in: path
+      schema:
+        type: string
+      required: true
